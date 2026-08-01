@@ -1,34 +1,59 @@
-import os, json, threading
+import os, threading
 from flask import Flask, render_template, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import telebot
 from telebot import types
-from models import db, Product, Purchase
-from config import BOT_TOKEN, ADMIN_USERNAME, WEBAPP_URL, SECRET_KEY, DATABASE_URL, PORT
+from config import BOT_TOKEN, ADMIN_USERNAME, WEBAPP_URL, SECRET_KEY, PORT
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
-app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///shop.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 CORS(app)
-db.init_app(app)
+db = SQLAlchemy(app)
 bot = telebot.TeleBot(BOT_TOKEN)
+
+# ==================== MODELS ====================
+from datetime import datetime
+
+class Product(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    image_url = db.Column(db.String(500), default='')
+    category = db.Column(db.String(100), default='Плагины')
+    version = db.Column(db.String(50), default='1.20+')
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    purchases_count = db.Column(db.Integer, default=0)
+
+    def to_dict(self):
+        return {'id':self.id,'name':self.name,'description':self.description,
+                'price':self.price,'image_url':self.image_url,'category':self.category,
+                'version':self.version,'is_active':self.is_active,'purchases_count':self.purchases_count}
+
+class Purchase(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    user_id = db.Column(db.Integer, nullable=False)
+    username = db.Column(db.String(200))
+    first_name = db.Column(db.String(200))
+    status = db.Column(db.String(50), default='pending')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    product = db.relationship('Product', backref='purchases_list')
 
 # ==================== BOT ====================
 @bot.message_handler(commands=['start'])
 def start_cmd(msg):
     markup = types.InlineKeyboardMarkup(row_width=1)
-    markup.add(types.InlineKeyboardButton(
-        text="🎮 Открыть Магазин Плагинов",
-        web_app=types.WebAppInfo(url=WEBAPP_URL)
-    ))
+    markup.add(types.InlineKeyboardButton(text="🎮 Открыть Магазин Плагинов", web_app=types.WebAppInfo(url=WEBAPP_URL)))
     bot.send_message(msg.chat.id,
         f"👋 Привет, {msg.from_user.first_name}!\n\n"
         "🏪 **Магазин Плагинов для Minecraft**\n\n"
         "🔹 Лучшие плагины для вашего сервера\n"
-        "🔹 Быстрая доставка\n"
-        "🔹 Поддержка 24/7\n\n"
+        "🔹 Быстрая доставка\n🔹 Поддержка 24/7\n\n"
         "Нажми кнопку ниже чтобы открыть магазин 👇",
         parse_mode='Markdown', reply_markup=markup)
 
@@ -36,81 +61,63 @@ def start_cmd(msg):
 def admin_cmd(msg):
     if msg.from_user.username and msg.from_user.username.lower() == ADMIN_USERNAME.lower():
         markup = types.InlineKeyboardMarkup(row_width=1)
-        markup.add(types.InlineKeyboardButton(
-            text="⚙️ Панель Администратора",
-            web_app=types.WebAppInfo(url=f"{WEBAPP_URL}/admin")
-        ))
+        markup.add(types.InlineKeyboardButton(text="⚙️ Панель Администратора", web_app=types.WebAppInfo(url=f"{WEBAPP_URL}/admin")))
         bot.send_message(msg.chat.id, "🔐 **Панель администратора**", parse_mode='Markdown', reply_markup=markup)
     else:
         bot.send_message(msg.chat.id, "⛔ Нет доступа.")
 
-# ==================== API ====================
+def notify_admin(product, user_info, purchase_id):
+    text = (f"🛒 **Новая покупка!**\n\n📦 {product.name}\n💰 {product.price:.0f}₽\n"
+            f"👤 @{user_info.get('username','N/A')} | {user_info.get('first_name','N/A')}\n"
+            f"🆔 ID: {user_info.get('user_id','N/A')}\n📋 Заказ #{purchase_id}")
+    try:
+        bot.send_message(f"@{ADMIN_USERNAME}", text, parse_mode='Markdown')
+    except:
+        pass
+
+# ==================== ROUTES ====================
 @app.route('/')
-def index():
-    return render_template('index.html')
+def index(): return render_template('index.html')
 
 @app.route('/admin')
-def admin_page():
-    return render_template('admin.html')
+def admin_page(): return render_template('admin.html')
 
 @app.route('/api/products', methods=['GET'])
 def get_products():
     cat = request.args.get('category')
     q = Product.query.filter_by(is_active=True)
-    if cat and cat != 'all':
-        q = q.filter_by(category=cat)
+    if cat and cat != 'all': q = q.filter_by(category=cat)
     return jsonify([p.to_dict() for p in q.order_by(Product.created_at.desc()).all()])
 
 @app.route('/api/products/<int:pid>', methods=['GET'])
-def get_product(pid):
-    return jsonify(Product.query.get_or_404(pid).to_dict())
+def get_product(pid): return jsonify(Product.query.get_or_404(pid).to_dict())
 
 @app.route('/api/products', methods=['POST'])
 def create_product():
     d = request.json
     p = Product(name=d['name'], description=d['description'], price=float(d['price']),
-                image_url=d.get('image_url',''), category=d.get('category','Плагины'),
-                version=d.get('version','1.20+'))
-    db.session.add(p)
-    db.session.commit()
+                image_url=d.get('image_url',''), category=d.get('category','Плагины'), version=d.get('version','1.20+'))
+    db.session.add(p); db.session.commit()
     return jsonify(p.to_dict()), 201
 
 @app.route('/api/products/<int:pid>', methods=['PUT'])
 def update_product(pid):
-    p = Product.query.get_or_404(pid)
-    d = request.json
+    p = Product.query.get_or_404(pid); d = request.json
     for k in ['name','description','price','image_url','category','version','is_active']:
-        if k in d:
-            setattr(p, k, float(d[k]) if k=='price' else d[k])
-    db.session.commit()
-    return jsonify(p.to_dict())
+        if k in d: setattr(p, k, float(d[k]) if k=='price' else d[k])
+    db.session.commit(); return jsonify(p.to_dict())
 
 @app.route('/api/products/<int:pid>', methods=['DELETE'])
 def delete_product(pid):
-    p = Product.query.get_or_404(pid)
-    p.is_active = False
-    db.session.commit()
+    p = Product.query.get_or_404(pid); p.is_active = False; db.session.commit()
     return jsonify({'ok': True})
 
 @app.route('/api/purchase', methods=['POST'])
 def make_purchase():
-    d = request.json
-    p = Product.query.get_or_404(d['product_id'])
-    ui = d['user_info']
-    pur = Purchase(product_id=p.id, user_id=ui.get('user_id',0),
-                   username=ui.get('username',''), first_name=ui.get('first_name',''))
-    p.purchases_count += 1
-    db.session.add(pur)
-    db.session.commit()
-    try:
-        text = (f"🛒 **Новая покупка!**\n\n📦 {p.name}\n💰 {p.price:.0f}₽\n"
-                f"👤 @{ui.get('username','N/A')} | {ui.get('first_name','N/A')}\n🆔 ID: {ui.get('user_id','N/A')}")
-        # Send to admin - find chat by trying to send
-        admin_chats = db.session.execute(db.text("SELECT DISTINCT user_id FROM purchases WHERE username = 'rev1lss'")).fetchall()
-        for row in admin_chats:
-            try: bot.send_message(row[0], text, parse_mode='Markdown')
-            except: pass
-    except: pass
+    d = request.json; p = Product.query.get_or_404(d['product_id']); ui = d['user_info']
+    pur = Purchase(product_id=p.id, user_id=ui.get('user_id',0), username=ui.get('username',''), first_name=ui.get('first_name',''))
+    p.purchases_count += 1; db.session.add(pur); db.session.commit()
+    notify_admin(p, ui, pur.id)
     return jsonify({'ok': True, 'purchase_id': pur.id, 'admin_username': ADMIN_USERNAME})
 
 @app.route('/api/purchases', methods=['GET'])
@@ -129,10 +136,11 @@ def get_stats():
 def get_categories():
     return jsonify([c[0] for c in db.session.query(Product.category).distinct().all() if c[0]])
 
+# ==================== SEED & RUN ====================
 def seed():
     if Product.query.count() == 0:
         for p in [
-            {'name':'EssentialsX Pro','description':'Мощный набор команд: телепортация, дома, экономику и др.','price':299,'image_url':'https://img.icons8.com/color/200/minecraft-pickaxe.png','category':'Команды','version':'1.16-1.21'},
+            {'name':'EssentialsX Pro','description':'Мощный набор команд: телепортация, дома, экономика и др.','price':299,'image_url':'https://img.icons8.com/color/200/minecraft-pickaxe.png','category':'Команды','version':'1.16-1.21'},
             {'name':'WorldGuard Ultra','description':'Защита территорий, регионы, флаги, анти-грифер.','price':499,'image_url':'https://img.icons8.com/color/200/shield.png','category':'Защита','version':'1.18-1.21'},
             {'name':'CustomEnchants+','description':'100+ уникальных зачарований: огненные мечи, ледяные луки.','price':599,'image_url':'https://img.icons8.com/color/200/magic-wand.png','category':'Геймплей','version':'1.17-1.21'},
             {'name':'EconomyMaster','description':'Полная экономика: магазины, аукционы, банки, работа.','price':399,'image_url':'https://img.icons8.com/color/200/money-bag.png','category':'Экономика','version':'1.16-1.21'},
@@ -140,8 +148,7 @@ def seed():
             {'name':'SkyBlock Ultimate','description':'Полный SkyBlock: острова, задания, прокачка.','price':799,'image_url':'https://img.icons8.com/color/200/island.png','category':'Сборки','version':'1.19-1.21'},
             {'name':'LuckPerms VIP','description':'Система прав и рангов, группы, наследование.','price':199,'image_url':'https://img.icons8.com/color/200/user-shield.png','category':'Управление','version':'1.14-1.21'},
             {'name':'Dynmap RealTime','description':'Интерактивная карта сервера в браузере.','price':249,'image_url':'https://img.icons8.com/color/200/map.png','category':'Утилиты','version':'1.16-1.21'},
-        ]:
-            db.session.add(Product(**p))
+        ]: db.session.add(Product(**p))
         db.session.commit()
         print("✅ Seeded 8 products")
 
@@ -149,9 +156,11 @@ def run_bot():
     print("🤖 Bot polling started")
     bot.infinity_polling()
 
+with app.app_context():
+    db.create_all()
+    seed()
+
+threading.Thread(target=run_bot, daemon=True).start()
+
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        seed()
-    threading.Thread(target=run_bot, daemon=True).start()
     app.run(host='0.0.0.0', port=PORT, debug=False)

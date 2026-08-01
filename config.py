@@ -4,5 +4,4 @@ BOT_TOKEN = "8853358564:AAG216k8tUzyx5MUybtKwsdbmFtt777uV4w"
 ADMIN_USERNAME = "rev1lss"
 WEBAPP_URL = os.environ.get("WEBAPP_URL", "http://localhost:5000")
 SECRET_KEY = os.environ.get("SECRET_KEY", "mc-plugins-secret-2024")
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///shop.db")
 PORT = int(os.environ.get("PORT", 5000))
