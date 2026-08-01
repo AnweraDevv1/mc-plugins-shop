@@ -1,4 +1,4 @@
-import os, threading, time
+import os, threading, time, traceback
 from flask import Flask, render_template, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
@@ -43,15 +43,17 @@ class Purchase(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     product = db.relationship('Product', backref='purchases_list')
 
-# Store admin chat_id when they first interact
+# Track admin chat ID
 ADMIN_CHAT_ID = None
 
 # ==================== BOT ====================
 @bot.message_handler(commands=['start'])
 def start_cmd(msg):
     global ADMIN_CHAT_ID
+    print(f"[BOT] /start from {msg.from_user.username} (chat_id={msg.chat.id})")
     if msg.from_user.username and msg.from_user.username.lower() == ADMIN_USERNAME.lower():
         ADMIN_CHAT_ID = msg.chat.id
+        print(f"[BOT] Admin detected! ADMIN_CHAT_ID={ADMIN_CHAT_ID}")
     
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(types.InlineKeyboardButton(text="🎮 Открыть Магазин Плагинов", web_app=types.WebAppInfo(url=WEBAPP_URL)))
@@ -66,6 +68,7 @@ def start_cmd(msg):
 @bot.message_handler(commands=['admin'])
 def admin_cmd(msg):
     global ADMIN_CHAT_ID
+    print(f"[BOT] /admin from {msg.from_user.username}")
     if msg.from_user.username and msg.from_user.username.lower() == ADMIN_USERNAME.lower():
         ADMIN_CHAT_ID = msg.chat.id
         markup = types.InlineKeyboardMarkup(row_width=1)
@@ -75,8 +78,9 @@ def admin_cmd(msg):
         bot.send_message(msg.chat.id, "⛔ У вас нет доступа к панели администратора.")
 
 @bot.message_handler(func=lambda m: True)
-def echo(msg):
+def handle_all(msg):
     global ADMIN_CHAT_ID
+    print(f"[BOT] Message from {msg.from_user.username}: {msg.text}")
     if msg.from_user.username and msg.from_user.username.lower() == ADMIN_USERNAME.lower():
         ADMIN_CHAT_ID = msg.chat.id
     bot.send_message(msg.chat.id, "Используй /start для открытия магазина или /admin для панели управления.")
@@ -95,39 +99,47 @@ def notify_admin(product, user_info, purchase_id):
             f"🆔 ID: {buyer_id}")
     
     if buyer_username:
-        text += f"\n🔗 Username: @{buyer_username}"
+        text += f"\n🔗 @{buyer_username}"
     
-    # Send notification
+    # Create contact button
+    markup = types.InlineKeyboardMarkup()
+    if buyer_username:
+        markup.add(types.InlineKeyboardButton(text=f"💬 Написать @{buyer_username}", url=f"https://t.me/{buyer_username}"))
+    else:
+        markup.add(types.InlineKeyboardButton(text="💬 Написать покупателю", url=f"tg://user?id={buyer_id}"))
+    
+    # Try ADMIN_CHAT_ID first, then try by username
+    sent = False
     if ADMIN_CHAT_ID:
         try:
-            # Button to contact buyer
-            markup = types.InlineKeyboardMarkup()
-            if buyer_username:
-                markup.add(types.InlineKeyboardButton(text="💬 Написать покупателю", url=f"https://t.me/{buyer_username}"))
-            markup.add(types.InlineKeyboardButton(text="📋 Написать покупателю (ID)", url=f"tg://user?id={buyer_id}"))
             bot.send_message(ADMIN_CHAT_ID, text, parse_mode='Markdown', reply_markup=markup)
+            sent = True
+            print(f"[BOT] Notified admin via chat_id: {ADMIN_CHAT_ID}")
         except Exception as e:
-            print(f"Failed to notify admin: {e}")
-    else:
-        # Try to find admin by username
+            print(f"[BOT] Failed to notify via chat_id: {e}")
+    
+    if not sent:
+        # Try sending to @username
         try:
-            markup = types.InlineKeyboardMarkup()
-            if buyer_username:
-                markup.add(types.InlineKeyboardButton(text="💬 Написать покупателю", url=f"https://t.me/{buyer_username}"))
-            markup.add(types.InlineKeyboardButton(text="📋 Написать покупателю (ID)", url=f"tg://user?id={buyer_id}"))
             bot.send_message(f"@{ADMIN_USERNAME}", text, parse_mode='Markdown', reply_markup=markup)
+            print(f"[BOT] Notified admin via @{ADMIN_USERNAME}")
         except Exception as e:
-            print(f"Failed to notify admin by username: {e}")
+            print(f"[BOT] Failed to notify admin: {e}")
 
 # ==================== WEBHOOK ====================
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    if request.headers.get('content-type') == 'application/json':
-        json_string = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return '', 200
-    return '', 403
+    try:
+        if request.headers.get('content-type') == 'application/json':
+            json_string = request.get_data().decode('utf-8')
+            update = telebot.types.Update.de_json(json_string)
+            bot.process_new_updates([update])
+            return '', 200
+        return '', 403
+    except Exception as e:
+        print(f"[WEBHOOK ERROR] {e}")
+        traceback.print_exc()
+        return '', 500
 
 # ==================== ROUTES ====================
 @app.route('/')
@@ -168,7 +180,10 @@ def delete_product(pid):
 
 @app.route('/api/purchase', methods=['POST'])
 def make_purchase():
-    d = request.json; p = Product.query.get_or_404(d['product_id']); ui = d['user_info']
+    d = request.json
+    print(f"[PURCHASE] New purchase: product_id={d.get('product_id')}, user={d.get('user_info',{}).get('username')}")
+    p = Product.query.get_or_404(d['product_id'])
+    ui = d['user_info']
     pur = Purchase(product_id=p.id, user_id=ui.get('user_id',0), username=ui.get('username',''), first_name=ui.get('first_name',''))
     p.purchases_count += 1; db.session.add(pur); db.session.commit()
     notify_admin(p, ui, pur.id)
@@ -212,13 +227,16 @@ with app.app_context():
 
 # Set webhook on startup
 def setup_webhook():
-    time.sleep(5)  # Wait for server to start
+    time.sleep(3)
     webhook_url = f"{WEBAPP_URL}/webhook"
     try:
         bot.remove_webhook()
         time.sleep(1)
         bot.set_webhook(url=webhook_url)
         print(f"✅ Webhook set to {webhook_url}")
+        # Verify
+        info = bot.get_webhook_info()
+        print(f"✅ Webhook info: url={info.url}, pending={info.pending_update_count}")
     except Exception as e:
         print(f"❌ Webhook setup failed: {e}")
 
