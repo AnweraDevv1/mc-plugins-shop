@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Admin Panel</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--p:#6366f1;--pd:#4f46e5;--pl:#818cf8;--s:#22c55e;--a:#f59e0b;--d:#ef4444;--dd:#dc2626;--bg1:#0f172a;--bg2:#1e293b;--bg3:#334155;--t1:#f8fafc;--t2:#94a3b8;--t3:#64748b;--b:#334155;--r:12px;--rs:8px;--rf:50px}
+body{font-family:'Inter',sans-serif;background:var(--bg1);color:var(--t1);min-height:100vh}
+#app{max-width:600px;margin:0 auto;padding-bottom:20px}
+.hdr{background:linear-gradient(135deg,var(--bg2),var(--bg3));padding:16px;border-bottom:1px solid var(--b);position:sticky;top:0;z-index:100}
+.hdr-c{display:flex;justify-content:space-between;align-items:center}
+.logo{display:flex;align-items:center;gap:12px}
+.logo span{font-size:28px}
+.logo h1{font-size:18px;font-weight:700}
+.logo small{font-size:12px;color:var(--t2)}
+.bb{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bg1);border:1px solid var(--b);border-radius:var(--rs);color:var(--t2);font-size:14px;cursor:pointer;transition:.3s}
+.bb:hover{background:var(--p);color:#fff;border-color:var(--p)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:16px}
+.sc{background:var(--bg2);border-radius:var(--r);border:1px solid var(--b);padding:16px;display:flex;align-items:center;gap:12px}
+.si2{width:44px;height:44px;border-radius:var(--rs);display:flex;align-items:center;justify-content:center;font-size:20px}
+.si2.p{background:rgba(99,102,241,.2);color:var(--pl)}
+.si2.pc{background:rgba(34,197,94,.2);color:var(--s)}
+.si2.r{background:rgba(245,158,11,.2);color:var(--a)}
+.sv{font-size:18px;font-weight:800}
+.sl{font-size:11px;color:var(--t3);text-transform:uppercase}
+.tabs{display:flex;padding:0 16px;gap:8px;margin-bottom:16px}
+.tb{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:var(--bg2);border:1px solid var(--b);border-radius:var(--rs);color:var(--t2);font-size:14px;font-weight:500;cursor:pointer;transition:.3s}
+.tb:hover{border-color:var(--p);color:var(--p)}
+.tb.a{background:var(--p);border-color:var(--p);color:#fff}
+.tc{display:none;padding:0 16px}.tc.a{display:block;animation:fi .3s ease}
+@keyframes fi{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.pi{background:var(--bg2);border-radius:var(--r);border:1px solid var(--b);padding:16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:.3s}
+.pi:hover{border-color:var(--p);transform:translateX(4px)}
+.pi-img{width:56px;height:56px;border-radius:var(--rs);background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pi-img img{width:36px;height:36px;object-fit:contain}
+.pi-info{flex:1;min-width:0}
+.pi-name{font-size:14px;font-weight:600;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pi-meta{display:flex;gap:12px;font-size:12px;color:var(--t3)}
+.pi-price{font-size:16px;font-weight:700;color:var(--s)}
+.sts{width:8px;height:8px;border-radius:50%;background:var(--s)}.sts.off{background:var(--d)}
+.fg{margin-bottom:20px}
+.fg label{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;margin-bottom:8px}
+.fg label i{color:var(--pl);font-size:16px}
+.fg input,.fg textarea,.fg select{width:100%;padding:12px 16px;background:var(--bg1);border:1px solid var(--b);border-radius:var(--rs);color:var(--t1);font-size:14px;font-family:inherit;transition:.3s;outline:none}
+.fg input:focus,.fg textarea:focus,.fg select:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(99,102,241,.2)}
+.fg select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
+.fg select option{background:var(--bg1)}
+.fh{font-size:12px;color:var(--t3);margin-top:6px}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form{background:var(--bg2);border-radius:var(--r);border:1px solid var(--b);padding:24px}
+.btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--p),var(--pd));color:#fff;border:none;border-radius:var(--r);font-size:16px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:.3s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(99,102,241,.4)}
+.pu{background:var(--bg2);border-radius:var(--r);border:1px solid var(--b);padding:16px;margin-bottom:12px}
+.pu-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.pu-id{font-size:12px;color:var(--t3)}
+.pu-st{padding:4px 10px;border-radius:var(--rf);font-size:11px;font-weight:600;text-transform:uppercase;background:rgba(245,158,11,.2);color:var(--a)}
+.pu-name{font-size:16px;font-weight:700;margin-bottom:8px}
+.pu-det{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--t2)}
+.pu-det span{display:flex;align-items:center;gap:6px}
+.pu-price{font-size:18px;font-weight:700;color:var(--s);margin-top:12px;padding-top:12px;border-top:1px solid var(--b)}
+.mo{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);z-index:1000;display:flex;align-items:flex-end;justify-content:center;opacity:0;visibility:hidden;transition:.3s}
+.mo.a{opacity:1;visibility:visible}
+.md{background:var(--bg2);border-radius:var(--r) var(--r) 0 0;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:24px;transform:translateY(100%);transition:transform .4s cubic-bezier(.4,0,.2,1)}
+.mo.a .md{transform:translateY(0)}
+.mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+.mh h2{font-size:20px;font-weight:700}
+.xb{width:36px;height:36px;border-radius:50%;border:none;background:var(--bg1);color:var(--t1);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.3s}
+.xb:hover{background:var(--d);transform:rotate(90deg)}
+.fa{display:flex;gap:12px;margin-top:24px}
+.bd{flex:1;padding:14px;background:var(--d);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:.3s}
+.bd:hover{background:var(--dd)}
+.bs{flex:2;padding:14px;background:linear-gradient(135deg,var(--p),var(--pd));color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:.3s}
+.bs:hover{transform:translateY(-2px)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);z-index:2000;transition:.3s}
+.toast.a{transform:translateX(-50%) translateY(0)}
+.tc2{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--s);border-radius:var(--r);padding:14px 24px;box-shadow:0 10px 15px -3px rgba(0,0,0,.4)}
+.tc2 i{color:var(--s);font-size:18px}
+.empty{text-align:center;padding:40px;color:var(--t3)}
+.empty i{font-size:48px;margin-bottom:16px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="hdr"><div class="hdr-c"><div class="logo"><span>⚙️</span><div><h1>Панель управления</h1><small>Администратор</small></div></div><button class="bb" onclick="window.Telegram.WebApp.close()"><i class="fas fa-arrow-left"></i>Назад</button></div></header>
+  <div class="stats">
+    <div class="sc"><div class="si2 p"><i class="fas fa-box"></i></div><div><div class="sv" id="sp">0</div><div class="sl">Товаров</div></div></div>
+    <div class="sc"><div class="si2 pc"><i class="fas fa-shopping-cart"></i></div><div><div class="sv" id="spp">0</div><div class="sl">Покупок</div></div></div>
+    <div class="sc"><div class="si2 r"><i class="fas fa-coins"></i></div><div><div class="sv" id="sr">0 ₽</div><div class="sl">Выручка</div></div></div>
+  </div>
+  <div class="tabs"><button class="tb a" data-t="products"><i class="fas fa-box"></i>Товары</button><button class="tb" data-t="add"><i class="fas fa-plus"></i>Добавить</button><button class="tb" data-t="orders"><i class="fas fa-list"></i>Заказы</button></div>
+  <div class="tc a" id="products"><div id="pl"></div></div>
+  <div class="tc" id="add"><form class="form" id="af">
+    <div class="fg"><label><i class="fas fa-tag"></i>Название</label><input type="text" id="an" placeholder="EssentialsX Pro" required></div>
+    <div class="fg"><label><i class="fas fa-align-left"></i>Описание</label><textarea id="ad" rows="3" placeholder="Описание плагина..." required></textarea></div>
+    <div class="fr"><div class="fg"><label><i class="fas fa-coins"></i>Цена (₽)</label><input type="number" id="ap" min="1" required></div><div class="fg"><label><i class="fas fa-code-branch"></i>Версия</label><input type="text" id="av" value="1.20+"></div></div>
+    <div class="fg"><label><i class="fas fa-folder"></i>Категория</label><select id="ac"><option>Плагины</option><option>Команды</option><option>Защита</option><option>Геймплей</option><option>Экономика</option><option>Мини-игры</option><option>Сборки</option><option>Управление</option><option>Утилиты</option></select></div>
+    <div class="fg"><label><i class="fas fa-image"></i>URL изображения</label><input type="url" id="ai" placeholder="https://..."><span class="fh">Оставьте пустым для стандартного</span></div>
+    <button type="submit" class="btn"><i class="fas fa-plus"></i>Добавить товар</button>
+  </form></div>
+  <div class="tc" id="orders"><div id="ol"></div></div>
+  <div class="mo" id="em"><div class="md"><div class="mh"><h2>Редактировать</h2><button class="xb" id="xm"><i class="fas fa-times"></i></button></div><form id="ef"><input type="hidden" id="eid"><div class="fg"><label>Название</label><input type="text" id="en" required></div><div class="fg"><label>Описание</label><textarea id="ed2" rows="3" required></textarea></div><div class="fr"><div class="fg"><label>Цена</label><input type="number" id="ep" min="1" required></div><div class="fg"><label>Версия</label><input type="text" id="ev"></div></div><div class="fg"><label>Категория</label><select id="ec"><option>Плагины</option><option>Команды</option><option>Защита</option><option>Геймплей</option><option>Экономика</option><option>Мини-игры</option><option>Сборки</option><option>Управление</option><option>Утилиты</option></select></div><div class="fg"><label>URL изображения</label><input type="url" id="ei"></div><div class="fa"><button type="button" class="bd" id="del"><i class="fas fa-trash"></i>Удалить</button><button type="submit" class="bs"><i class="fas fa-save"></i>Сохранить</button></div></form></div></div>
+  <div class="toast" id="toast"><div class="tc2"><i class="fas fa-check-circle"></i><span id="tt"></span></div></div>
+</div>
+<script>
+const fmt=n=>new Intl.NumberFormat('ru-RU').format(n);
+const df=d=>new Date(d).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+const showT=m=>{document.getElementById('tt').textContent=m;document.getElementById('toast').classList.add('a');setTimeout(()=>document.getElementById('toast').classList.remove('a'),3000)};
+let products=[],editing=null;
+
+document.querySelectorAll('.tb').forEach(b=>{b.onclick=()=>{
+  document.querySelectorAll('.tb').forEach(x=>x.classList.remove('a'));b.classList.add('a');
+  document.querySelectorAll('.tc').forEach(x=>x.classList.remove('a'));
+  document.getElementById(b.dataset.t).classList.add('a');
+}});
+
+async function load(){
+  const [ps,pu,st]=await Promise.all([fetch('/api/products').then(r=>r.json()),fetch('/api/purchases').then(r=>r.json()),fetch('/api/stats').then(r=>r.json())]);
+  products=ps;
+  document.getElementById('sp').textContent=st.total_products;
+  document.getElementById('spp').textContent=st.total_purchases;
+  document.getElementById('sr').textContent=fmt(st.total_revenue)+' ₽';
+  renderProducts(ps);renderPurchases(pu);
+}
+
+function renderProducts(ps){
+  document.getElementById('pl').innerHTML=ps.length?ps.map(p=>`
+    <div class="pi" onclick="editP(${p.id})">
+      <div class="pi-img"><img src="${p.image_url||'https://img.icons8.com/color/96/minecraft-pickaxe.png'}" onerror="this.src='https://img.icons8.com/color/96/minecraft-pickaxe.png'"></div>
+      <div class="pi-info"><div class="pi-name">${p.name}</div><div class="pi-meta"><span>${p.category}</span><span>v${p.version}</span><span>${p.purchases_count} продаж</span></div></div>
+      <div class="pi-price">${fmt(p.price)} ₽</div>
+      <div class="sts ${p.is_active?'':'off'}"></div>
+    </div>`).join(''):'<div class="empty"><i class="fas fa-box-open"></i><h3>Нет товаров</h3></div>';
+}
+
+function renderPurchases(pu){
+  document.getElementById('ol').innerHTML=pu.length?pu.map(p=>`
+    <div class="pu"><div class="pu-h"><span class="pu-id">Заказ #${p.id}</span><span class="pu-st">${p.status==='pending'?'Ожидает':'Выполнен'}</span></div>
+    <div class="pu-name">${p.product_name}</div><div class="pu-det"><span><i class="fas fa-user"></i>${p.first_name||'N/A'} (@${p.username||'N/A'})</span><span><i class="fas fa-clock"></i>${df(p.created_at)}</span></div>
+    <div class="pu-price">${fmt(p.product_price)} ₽</div></div>`).join(''):'<div class="empty"><i class="fas fa-shopping-cart"></i><h3>Нет заказов</h3></div>';
+}
+
+function editP(id){
+  editing=products.find(p=>p.id===id);if(!editing)return;
+  document.getElementById('eid').value=editing.id;
+  document.getElementById('en').value=editing.name;
+  document.getElementById('ed2').value=editing.description;
+  document.getElementById('ep').value=editing.price;
+  document.getElementById('ev').value=editing.version;
+  document.getElementById('ec').value=editing.category;
+  document.getElementById('ei').value=editing.image_url||'';
+  document.getElementById('em').classList.add('a');
+}
+document.getElementById('xm').onclick=closeEM;
+document.getElementById('em').onclick=e=>{if(e.target===document.getElementById('em'))closeEM()};
+function closeEM(){document.getElementById('em').classList.remove('a');editing=null}
+
+document.getElementById('af').onsubmit=async e=>{
+  e.preventDefault();
+  const d={name:document.getElementById('an').value,description:document.getElementById('ad').value,price:parseFloat(document.getElementById('ap').value),version:document.getElementById('av').value||'1.20+',category:document.getElementById('ac').value,image_url:document.getElementById('ai').value};
+  const r=await(await fetch('/api/products',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})).json();
+  if(r.id){showT('Товар добавлен!');e.target.reset();document.getElementById('av').value='1.20+';await load();document.querySelector('[data-t="products"]').click();}
+};
+
+document.getElementById('ef').onsubmit=async e=>{
+  e.preventDefault();if(!editing)return;
+  const d={name:document.getElementById('en').value,description:document.getElementById('ed2').value,price:parseFloat(document.getElementById('ep').value),version:document.getElementById('ev').value,category:document.getElementById('ec').value,image_url:document.getElementById('ei').value};
+  await fetch('/api/products/'+editing.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+  showT('Обновлено!');closeEM();await load();
+};
+
+document.getElementById('del').onclick=async()=>{
+  if(!editing||!confirm('Удалить товар?'))return;
+  await fetch('/api/products/'+editing.id,{method:'DELETE'});
+  showT('Удалено!');closeEM();await load();
+};
+
+load();
+</script>
+</body>
+</html>

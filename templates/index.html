@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>MC Plugins Shop</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--p:#6366f1;--pd:#4f46e5;--pl:#818cf8;--s:#22c55e;--a:#f59e0b;--d:#ef4444;--bg1:#0f172a;--bg2:#1e293b;--bg3:#334155;--t1:#f8fafc;--t2:#94a3b8;--t3:#64748b;--b:#334155;--r:12px;--rs:8px;--rf:50px}
+body{font-family:'Inter',sans-serif;background:var(--bg1);color:var(--t1);min-height:100vh;-webkit-font-smoothing:antialiased}
+#app{max-width:600px;margin:0 auto;min-height:100vh}
+.hdr{background:linear-gradient(135deg,var(--bg2),var(--bg3));padding:16px;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--b)}
+.hdr-c{display:flex;justify-content:space-between;align-items:center}
+.logo{display:flex;align-items:center;gap:12px}
+.logo span{font-size:32px;animation:f 3s ease-in-out infinite}
+@keyframes f{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.logo h1{font-size:20px;font-weight:800;background:linear-gradient(135deg,var(--pl),var(--s));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.logo small{font-size:12px;color:var(--t2)}
+.hdr-a{display:flex;gap:8px}
+.bi{width:40px;height:40px;border-radius:var(--rs);border:1px solid var(--b);background:var(--bg1);color:var(--t1);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;transition:.3s}
+.bi:hover{background:var(--p);border-color:var(--p);transform:translateY(-2px)}
+.sb{max-height:0;overflow:hidden;transition:.3s;margin-top:0}
+.sb.a{max-height:60px;margin-top:12px}
+.si{display:flex;align-items:center;background:var(--bg1);border:1px solid var(--b);border-radius:var(--rf);padding:8px 16px;gap:10px}
+.si i{color:var(--t3)}
+.si input{flex:1;background:none;border:none;color:var(--t1);font-size:14px;outline:none}
+.si input::placeholder{color:var(--t3)}
+.cats{padding:12px 16px;overflow-x:auto;display:flex;gap:8px;-webkit-overflow-scrolling:touch}
+.cats::-webkit-scrollbar{display:none}
+.cb{display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--rf);border:1px solid var(--b);background:var(--bg2);color:var(--t2);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;transition:.3s}
+.cb:hover{border-color:var(--p);color:var(--p)}
+.cb.a{background:var(--p);border-color:var(--p);color:#fff}
+.main{padding:0 16px 100px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.card{background:var(--bg2);border-radius:var(--r);border:1px solid var(--b);overflow:hidden;cursor:pointer;transition:.3s;animation:fi .5s ease}
+@keyframes fi{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.card:hover{transform:translateY(-4px);box-shadow:0 10px 15px -3px rgba(0,0,0,.4);border-color:var(--p)}
+.card-img{width:100%;height:120px;background:linear-gradient(135deg,var(--bg3),var(--bg1));display:flex;align-items:center;justify-content:center}
+.card-img img{width:64px;height:64px;object-fit:contain;transition:.3s}
+.card:hover .card-img img{transform:scale(1.1)}
+.card-info{padding:12px}
+.cat-tag{display:inline-block;padding:2px 8px;background:rgba(99,102,241,.2);color:var(--pl);border-radius:var(--rf);font-size:10px;font-weight:600;text-transform:uppercase;margin-bottom:6px}
+.card-name{font-size:14px;font-weight:700;margin-bottom:6px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card-ver{font-size:11px;color:var(--t3);display:flex;align-items:center;gap:4px;margin-bottom:8px}
+.card-foot{display:flex;justify-content:space-between;align-items:center}
+.price{font-size:16px;font-weight:800;color:var(--s)}
+.price span{font-size:12px;font-weight:500}
+.buy-sm{width:32px;height:32px;border-radius:var(--rs);border:none;background:var(--p);color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.3s}
+.buy-sm:hover{background:var(--pd);transform:scale(1.1)}
+.load{display:flex;flex-direction:column;align-items:center;padding:60px 0;gap:16px}
+.sp{width:40px;height:40px;border:3px solid var(--b);border-top-color:var(--p);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:60px 20px}
+.empty i{font-size:48px;color:var(--t3);margin-bottom:16px}
+.empty h3{font-size:18px;margin-bottom:8px}
+.empty p{color:var(--t2);font-size:14px}
+.mo{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);z-index:1000;display:flex;align-items:flex-end;justify-content:center;opacity:0;visibility:hidden;transition:.3s}
+.mo.a{opacity:1;visibility:visible}
+.modal{background:var(--bg2);border-radius:var(--r) var(--r) 0 0;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;transform:translateY(100%);transition:transform .4s cubic-bezier(.4,0,.2,1)}
+.mo.a .modal{transform:translateY(0)}
+.mc{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;border:none;background:var(--bg1);color:var(--t1);font-size:16px;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center;transition:.3s}
+.mc:hover{background:var(--d);transform:rotate(90deg)}
+.m-img{width:100%;height:200px;background:linear-gradient(135deg,var(--bg3),var(--bg1));display:flex;align-items:center;justify-content:center}
+.m-img img{width:100px;height:100px;object-fit:contain}
+.m-info{padding:24px}
+.m-cat{display:inline-block;padding:4px 12px;background:rgba(99,102,241,.2);color:var(--pl);border-radius:var(--rf);font-size:12px;font-weight:600;text-transform:uppercase;margin-bottom:12px}
+.m-info h2{font-size:24px;font-weight:800;margin-bottom:8px}
+.m-ver{display:flex;align-items:center;gap:6px;color:var(--t3);font-size:14px;margin-bottom:16px}
+.m-desc{color:var(--t2);font-size:14px;line-height:1.6;margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid var(--b)}
+.m-foot{display:flex;justify-content:space-between;align-items:center}
+.m-price{display:flex;flex-direction:column}
+.m-price .lbl{font-size:12px;color:var(--t3);text-transform:uppercase}
+.m-price .val{font-size:28px;font-weight:800;color:var(--s)}
+.btn-buy{display:flex;align-items:center;gap:10px;padding:14px 28px;background:linear-gradient(135deg,var(--p),var(--pd));color:#fff;border:none;border-radius:var(--r);font-size:16px;font-weight:600;cursor:pointer;transition:.3s}
+.btn-buy:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(99,102,241,.4)}
+.pm .modal{border-radius:var(--r);margin:20px;max-width:400px;transform:translateY(50px) scale(.95);opacity:0}
+.mo.a .pm .modal{transform:translateY(0) scale(1);opacity:1}
+.pm-c{padding:32px 24px;text-align:center}
+.pm-c .icon{font-size:64px;color:var(--s);margin-bottom:16px;animation:sc .5s ease}
+@keyframes sc{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+.pm-c h2{font-size:24px;font-weight:800;margin-bottom:12px}
+.pm-c p{color:var(--t2);font-size:14px;line-height:1.6;margin-bottom:20px}
+.det{background:var(--bg1);border-radius:var(--rs);padding:16px;margin-bottom:24px;text-align:left}
+.det p{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--b);font-size:14px}
+.det p:last-child{border:none}
+.det .lbl{color:var(--t3)}
+.det .val{color:var(--t1);font-weight:600}
+.bp{width:100%;padding:14px;background:linear-gradient(135deg,#0088cc,#0066aa);color:#fff;border:none;border-radius:var(--r);font-size:16px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px;transition:.3s}
+.bp:hover{transform:translateY(-2px)}
+.bs{width:100%;padding:14px;background:var(--bg1);color:var(--t2);border:1px solid var(--b);border-radius:var(--r);font-size:14px;cursor:pointer;transition:.3s}
+.bs:hover{background:var(--bg3);color:var(--t1)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);z-index:2000;transition:.3s}
+.toast.a{transform:translateX(-50%) translateY(0)}
+.toast-c{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--s);border-radius:var(--r);padding:14px 24px;box-shadow:0 10px 15px -3px rgba(0,0,0,.4)}
+.toast-c i{color:var(--s);font-size:18px}
+.toast-c span{font-size:14px;font-weight:500}
+@media(max-width:400px){.grid{grid-template-columns:1fr}.card-img{height:160px}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="hdr">
+    <div class="hdr-c">
+      <div class="logo"><span>🎮</span><div><h1>MC Plugins</h1><small>Плагины для серверов</small></div></div>
+      <div class="hdr-a">
+        <button class="bi" id="searchBtn"><i class="fas fa-search"></i></button>
+      </div>
+    </div>
+    <div class="sb" id="sb"><div class="si"><i class="fas fa-search"></i><input type="text" id="si" placeholder="Поиск плагинов..."><button class="bi" style="width:28px;height:28px;border-radius:50%;font-size:12px;border:none;background:var(--bg3);color:var(--t2)" id="cs"><i class="fas fa-times"></i></button></div></div>
+  </header>
+  <div class="cats" id="cats"><button class="cb a" data-c="all"><i class="fas fa-th"></i><span>Все</span></button></div>
+  <main class="main">
+    <div class="grid" id="grid"></div>
+    <div class="load" id="load"><div class="sp"></div><p>Загрузка...</p></div>
+    <div class="empty" id="empty" style="display:none"><i class="fas fa-box-open"></i><h3>Товары не найдены</h3><p>Попробуйте изменить фильтры</p></div>
+  </main>
+  <div class="mo" id="pm"><div class="modal" style="position:relative"><button class="mc" id="cm"><i class="fas fa-times"></i></button><div class="m-img"><img id="mi" src="" alt=""></div><div class="m-info"><span class="m-cat" id="mc2"></span><h2 id="mt"></h2><div class="m-ver"><i class="fas fa-code-branch"></i><span id="mv"></span></div><div class="m-desc" id="md"></div><div class="m-foot"><div class="m-price"><span class="lbl">Цена</span><span class="val" id="mp"></span></div><button class="btn-buy" id="mb"><i class="fas fa-shopping-cart"></i>Купить</button></div></div></div></div>
+  <div class="mo pm" id="pum"><div class="modal"><div class="pm-c"><div class="icon"><i class="fas fa-check-circle"></i></div><h2>Заказ оформлен!</h2><p>Сейчас вы будете перенаправлены к продавцу для получения плагина.</p><div class="det" id="pd"></div><button class="bp" id="cs2"><i class="fab fa-telegram"></i>Написать продавцу</button><button class="bs" id="cpm">Продолжить покупки</button></div></div></div>
+  <div class="toast" id="toast"><div class="toast-c"><i class="fas fa-check-circle"></i><span id="tt"></span></div></div>
+</div>
+<script>
+const tg=window.Telegram.WebApp;tg.ready();tg.expand();
+let products=[],curCat='all',curProd=null;
+const $=s=>document.getElementById(s);
+const fmt=n=>new Intl.NumberFormat('ru-RU').format(n);
+
+async function loadProducts(){
+  $('load').style.display='flex';$('empty').style.display='none';
+  let url='/api/products';if(curCat!=='all')url+='?category='+curCat;
+  const r=await fetch(url);products=await r.json();
+  $('load').style.display='none';
+  if(!products.length){$('grid').innerHTML='';$('empty').style.display='block';return}
+  $('empty').style.display='none';
+  $('grid').innerHTML=products.map((p,i)=>`
+    <div class="card" data-id="${p.id}" style="animation-delay:${i*.1}s" onclick="openP(${p.id})">
+      <div class="card-img"><img src="${p.image_url||'https://img.icons8.com/color/96/minecraft-pickaxe.png'}" onerror="this.src='https://img.icons8.com/color/96/minecraft-pickaxe.png'"></div>
+      <div class="card-info">
+        <span class="cat-tag">${p.category}</span>
+        <div class="card-name">${p.name}</div>
+        <div class="card-ver"><i class="fas fa-code-branch"></i><span>${p.version}</span></div>
+        <div class="card-foot"><div class="price">${fmt(p.price)} <span>₽</span></div>
+        <button class="buy-sm" onclick="event.stopPropagation();openP(${p.id})"><i class="fas fa-arrow-right"></i></button></div>
+      </div>
+    </div>`).join('');
+}
+
+async function loadCats(){
+  const r=await fetch('/api/categories');const cats=await r.json();
+  const icons={'Команды':'fa-terminal','Защита':'fa-shield-alt','Геймплей':'fa-gamepad','Экономика':'fa-coins','Мини-игры':'fa-puzzle-piece','Сборки':'fa-server','Управление':'fa-cogs','Утилиты':'fa-wrench'};
+  $('cats').innerHTML=`<button class="cb${curCat==='all'?' a':''}" data-c="all"><i class="fas fa-th"></i><span>Все</span></button>`+
+    cats.map(c=>`<button class="cb${curCat===c?' a':''}" data-c="${c}"><i class="fas ${icons[c]||'fa-tag'}"></i><span>${c}</span></button>`).join('');
+  document.querySelectorAll('.cb').forEach(b=>b.onclick=()=>{curCat=b.dataset.c;document.querySelectorAll('.cb').forEach(x=>x.classList.remove('a'));b.classList.add('a');loadProducts()});
+}
+
+function openP(id){
+  curProd=products.find(p=>p.id===id);if(!curProd)return;
+  $('mi').src=curProd.image_url||'https://img.icons8.com/color/96/minecraft-pickaxe.png';
+  $('mi').onerror=function(){this.src='https://img.icons8.com/color/96/minecraft-pickaxe.png'};
+  $('mt').textContent=curProd.name;$('mc2').textContent=curProd.category;
+  $('mv').textContent=curProd.version;$('md').textContent=curProd.description;
+  $('mp').textContent=fmt(curProd.price)+' ₽';
+  $('pm').classList.add('a');document.body.style.overflow='hidden';
+}
+$('cm').onclick=closeM;$('pm').onclick=e=>{if(e.target===$('pm'))closeM()};
+function closeM(){$('pm').classList.remove('a');document.body.style.overflow=''}
+
+$('mb').onclick=async()=>{
+  if(!curProd)return;
+  const u=tg.initDataUnsafe?.user||{};
+  const ui={user_id:u.id||0,username:u.username||'anon',first_name:u.first_name||'User'};
+  const r=await(await fetch('/api/purchase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({product_id:curProd.id,user_info:ui})})).json();
+  if(r.ok){closeM();
+    $('pd').innerHTML=`<p><span class="lbl">Товар</span><span class="val">${curProd.name}</span></p><p><span class="lbl">Цена</span><span class="val">${fmt(curProd.price)} ₽</span></p><p><span class="lbl">Заказ #</span><span class="val">${r.purchase_id}</span></p>`;
+    $('pum').classList.add('a');document.body.style.overflow='hidden';
+    $('cs2').onclick=()=>{window.open(`https://t.me/${r.admin_username||'rev1lss'}?text=${encodeURIComponent('🎮 Хочу купить '+curProd.name+' за '+curProd.price+'₽\n📦 Заказ #'+r.purchase_id)}`,'_blank')};
+    showT('Заказ оформлен!');$('cpm').onclick=closePM;
+  }
+};
+function closePM(){$('pum').classList.remove('a');document.body.style.overflow=''}
+$('pum').onclick=e=>{if(e.target===$('pum'))closePM()};
+
+$('searchBtn').onclick=()=>$('sb').classList.toggle('a');
+$('cs').onclick=()=>$('si').value='';
+let st;$('si').oninput=e=>{clearTimeout(st);st=setTimeout(async()=>{$('load').style.display='flex';const r=await fetch('/api/products');let all=await r.json();const q=e.target.value.toLowerCase();products=all.filter(p=>p.name.toLowerCase().includes(q));$('load').style.display='none';renderProducts()},300)};
+function showT(m){$('tt').textContent=m;$('toast').classList.add('a');setTimeout(()=>$('toast').classList.remove('a'),3000)}
+
+Promise.all([loadCats(),loadProducts()]);
+</script>
+</body>
+</html>
