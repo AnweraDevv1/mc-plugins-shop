@@ -1,4 +1,4 @@
-import os, threading
+import os, threading, time
 from flask import Flask, render_template, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
@@ -28,7 +28,6 @@ class Product(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     purchases_count = db.Column(db.Integer, default=0)
-
     def to_dict(self):
         return {'id':self.id,'name':self.name,'description':self.description,
                 'price':self.price,'image_url':self.image_url,'category':self.category,
@@ -44,9 +43,16 @@ class Purchase(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     product = db.relationship('Product', backref='purchases_list')
 
+# Store admin chat_id when they first interact
+ADMIN_CHAT_ID = None
+
 # ==================== BOT ====================
 @bot.message_handler(commands=['start'])
 def start_cmd(msg):
+    global ADMIN_CHAT_ID
+    if msg.from_user.username and msg.from_user.username.lower() == ADMIN_USERNAME.lower():
+        ADMIN_CHAT_ID = msg.chat.id
+    
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(types.InlineKeyboardButton(text="🎮 Открыть Магазин Плагинов", web_app=types.WebAppInfo(url=WEBAPP_URL)))
     bot.send_message(msg.chat.id,
@@ -59,21 +65,69 @@ def start_cmd(msg):
 
 @bot.message_handler(commands=['admin'])
 def admin_cmd(msg):
+    global ADMIN_CHAT_ID
     if msg.from_user.username and msg.from_user.username.lower() == ADMIN_USERNAME.lower():
+        ADMIN_CHAT_ID = msg.chat.id
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(types.InlineKeyboardButton(text="⚙️ Панель Администратора", web_app=types.WebAppInfo(url=f"{WEBAPP_URL}/admin")))
-        bot.send_message(msg.chat.id, "🔐 **Панель администратора**", parse_mode='Markdown', reply_markup=markup)
+        bot.send_message(msg.chat.id, "🔐 **Панель администратора**\n\nУправляйте товарами:", parse_mode='Markdown', reply_markup=markup)
     else:
-        bot.send_message(msg.chat.id, "⛔ Нет доступа.")
+        bot.send_message(msg.chat.id, "⛔ У вас нет доступа к панели администратора.")
+
+@bot.message_handler(func=lambda m: True)
+def echo(msg):
+    global ADMIN_CHAT_ID
+    if msg.from_user.username and msg.from_user.username.lower() == ADMIN_USERNAME.lower():
+        ADMIN_CHAT_ID = msg.chat.id
+    bot.send_message(msg.chat.id, "Используй /start для открытия магазина или /admin для панели управления.")
 
 def notify_admin(product, user_info, purchase_id):
-    text = (f"🛒 **Новая покупка!**\n\n📦 {product.name}\n💰 {product.price:.0f}₽\n"
-            f"👤 @{user_info.get('username','N/A')} | {user_info.get('first_name','N/A')}\n"
-            f"🆔 ID: {user_info.get('user_id','N/A')}\n📋 Заказ #{purchase_id}")
-    try:
-        bot.send_message(f"@{ADMIN_USERNAME}", text, parse_mode='Markdown')
-    except:
-        pass
+    global ADMIN_CHAT_ID
+    buyer_username = user_info.get('username', '')
+    buyer_name = user_info.get('first_name', 'Покупатель')
+    buyer_id = user_info.get('user_id', 0)
+    
+    text = (f"🛒 **Новая покупка!**\n\n"
+            f"📦 Товар: {product.name}\n"
+            f"💰 Цена: {product.price:.0f}₽\n"
+            f"📋 Заказ #{purchase_id}\n\n"
+            f"👤 Покупатель: {buyer_name}\n"
+            f"🆔 ID: {buyer_id}")
+    
+    if buyer_username:
+        text += f"\n🔗 Username: @{buyer_username}"
+    
+    # Send notification
+    if ADMIN_CHAT_ID:
+        try:
+            # Button to contact buyer
+            markup = types.InlineKeyboardMarkup()
+            if buyer_username:
+                markup.add(types.InlineKeyboardButton(text="💬 Написать покупателю", url=f"https://t.me/{buyer_username}"))
+            markup.add(types.InlineKeyboardButton(text="📋 Написать покупателю (ID)", url=f"tg://user?id={buyer_id}"))
+            bot.send_message(ADMIN_CHAT_ID, text, parse_mode='Markdown', reply_markup=markup)
+        except Exception as e:
+            print(f"Failed to notify admin: {e}")
+    else:
+        # Try to find admin by username
+        try:
+            markup = types.InlineKeyboardMarkup()
+            if buyer_username:
+                markup.add(types.InlineKeyboardButton(text="💬 Написать покупателю", url=f"https://t.me/{buyer_username}"))
+            markup.add(types.InlineKeyboardButton(text="📋 Написать покупателю (ID)", url=f"tg://user?id={buyer_id}"))
+            bot.send_message(f"@{ADMIN_USERNAME}", text, parse_mode='Markdown', reply_markup=markup)
+        except Exception as e:
+            print(f"Failed to notify admin by username: {e}")
+
+# ==================== WEBHOOK ====================
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return '', 200
+    return '', 403
 
 # ==================== ROUTES ====================
 @app.route('/')
@@ -136,7 +190,7 @@ def get_stats():
 def get_categories():
     return jsonify([c[0] for c in db.session.query(Product.category).distinct().all() if c[0]])
 
-# ==================== SEED & RUN ====================
+# ==================== SEED & INIT ====================
 def seed():
     if Product.query.count() == 0:
         for p in [
@@ -152,15 +206,23 @@ def seed():
         db.session.commit()
         print("✅ Seeded 8 products")
 
-def run_bot():
-    print("🤖 Bot polling started")
-    bot.infinity_polling()
-
 with app.app_context():
     db.create_all()
     seed()
 
-threading.Thread(target=run_bot, daemon=True).start()
+# Set webhook on startup
+def setup_webhook():
+    time.sleep(5)  # Wait for server to start
+    webhook_url = f"{WEBAPP_URL}/webhook"
+    try:
+        bot.remove_webhook()
+        time.sleep(1)
+        bot.set_webhook(url=webhook_url)
+        print(f"✅ Webhook set to {webhook_url}")
+    except Exception as e:
+        print(f"❌ Webhook setup failed: {e}")
+
+threading.Thread(target=setup_webhook, daemon=True).start()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=PORT, debug=False)
